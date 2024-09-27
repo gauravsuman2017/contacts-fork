@@ -21,10 +21,8 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-@CapacitorPlugin(
-    name = "Contacts",
-    permissions = { @Permission(strings = { Manifest.permission.READ_CONTACTS, Manifest.permission.WRITE_CONTACTS }, alias = "contacts") }
-)
+@CapacitorPlugin(name = "Contacts", permissions = {
+        @Permission(strings = { Manifest.permission.READ_CONTACTS }, alias = "contacts") })
 public class ContactsPlugin extends Plugin {
 
     private Contacts implementation;
@@ -40,6 +38,7 @@ public class ContactsPlugin extends Plugin {
 
     /**
      * Checks the the given permission is granted or not
+     * 
      * @return Returns true if the permission is granted and false if it is denied.
      */
     private boolean isContactsPermissionGranted() {
@@ -85,7 +84,8 @@ public class ContactsPlugin extends Plugin {
                     return;
                 }
 
-                GetContactsProjectionInput projectionInput = new GetContactsProjectionInput(call.getObject("projection"));
+                GetContactsProjectionInput projectionInput = new GetContactsProjectionInput(
+                        call.getObject("projection"));
 
                 ContactPayload contact = implementation.getContact(contactId, projectionInput);
 
@@ -112,39 +112,36 @@ public class ContactsPlugin extends Plugin {
                 ExecutorService executor = Executors.newSingleThreadExecutor();
 
                 executor.execute(
-                    new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                HashMap<String, ContactPayload> contacts = implementation.getContacts(
-                                    new GetContactsProjectionInput(call.getObject("projection"))
-                                );
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                try {
+                                    HashMap<String, ContactPayload> contacts = implementation.getContacts(
+                                            new GetContactsProjectionInput(call.getObject("projection")));
 
-                                JSArray contactsJSArray = new JSArray();
-                                for (Map.Entry<String, ContactPayload> entry : contacts.entrySet()) {
-                                    ContactPayload value = entry.getValue();
-                                    contactsJSArray.put(value.getJSObject());
+                                    JSArray contactsJSArray = new JSArray();
+                                    for (Map.Entry<String, ContactPayload> entry : contacts.entrySet()) {
+                                        ContactPayload value = entry.getValue();
+                                        contactsJSArray.put(value.getJSObject());
+                                    }
+
+                                    JSObject result = new JSObject();
+                                    result.put("contacts", contactsJSArray);
+
+                                    bridge
+                                            .getActivity()
+                                            .runOnUiThread(
+                                                    new Runnable() {
+                                                        @Override
+                                                        public void run() {
+                                                            call.resolve(result);
+                                                        }
+                                                    });
+                                } catch (Exception exception) {
+                                    rejectCall(call, exception);
                                 }
-
-                                JSObject result = new JSObject();
-                                result.put("contacts", contactsJSArray);
-
-                                bridge
-                                    .getActivity()
-                                    .runOnUiThread(
-                                        new Runnable() {
-                                            @Override
-                                            public void run() {
-                                                call.resolve(result);
-                                            }
-                                        }
-                                    );
-                            } catch (Exception exception) {
-                                rejectCall(call, exception);
                             }
-                        }
-                    }
-                );
+                        });
 
                 executor.shutdown();
             }
@@ -218,13 +215,15 @@ public class ContactsPlugin extends Plugin {
     @ActivityCallback
     private void pickContactResult(PluginCall call, ActivityResult activityResult) {
         if (call != null && activityResult.getResultCode() == Activity.RESULT_OK && activityResult.getData() != null) {
-            // This will return a URI for retrieving the contact, e.g.: "content://com.android.contacts/contacts/1234"
+            // This will return a URI for retrieving the contact, e.g.:
+            // "content://com.android.contacts/contacts/1234"
             Uri uri = activityResult.getData().getData();
             // Parse the contactId from this URI.
             String contactId = Contacts.getIdFromUri(uri);
 
             if (contactId == null) {
-                call.reject("Parameter `contactId` not returned from pick. Please raise an issue in GitHub if this problem persists.");
+                call.reject(
+                        "Parameter `contactId` not returned from pick. Please raise an issue in GitHub if this problem persists.");
                 return;
             }
 
@@ -246,7 +245,7 @@ public class ContactsPlugin extends Plugin {
     private void rejectCall(PluginCall call, Exception exception) {
         String message = exception.getMessage();
         message = (message != null) ? message : "An error occurred.";
-        Logger.error(TAG, message, exception);
+        // Logger.error(TAG, message, exception);
         call.reject(message);
     }
 }
